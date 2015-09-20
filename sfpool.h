@@ -33,6 +33,7 @@ struct sfpool
     enum SFPOOL_EXPAND_FACTOR expand_factor;
 
     struct sfpool_page* pages;
+    struct sfpool_page* working_page;
 };
 
 struct sfpool_page
