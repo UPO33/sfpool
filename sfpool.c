@@ -47,11 +47,10 @@ struct sfpool* sfpool_create (size_t item_size,size_t item_count)
     
     pool->item_size = round_size(item_size);
 
-    /* check for previous page and find out how big this page should be ? */
+    /* check the previous pages and find out how big this page should be ? */
 
     if(pool->pages != NULL) /* so there are already some pages in the pool */
     {
-        
     }
 
     return pool;
@@ -76,14 +75,14 @@ void sfpool_destroy (struct sfpool* pool)
     }
 }
 
-static int add_page (struct sfpool* pool,size_t item_count)
+static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
 {
     size_t raw_size = ((WORD_SIZE + pool->item_size) * item_count) + sizeof(struct sfpool_page);
     struct sfpool_page* page = (struct sfpool_page*) malloc(raw_size);
 
     if(page == NULL)
     {
-        return 1;
+        return NULL;
     }
 
     /* initialize the new page */
@@ -137,5 +136,112 @@ static int add_page (struct sfpool* pool,size_t item_count)
 
     *header = 0x0;
 
-    return 0;
+    return page;
+}
+
+void* sfpool_alloc (struct sfpool* pool)
+{
+    /* get the current working page */
+
+    struct sfpool_page* wp = pool->working_page;
+
+    /*
+     * if we already have a working page. note that a working page
+     * always has at least one free item !
+     */
+
+    if(wp != NULL)
+    {
+        /* get the address of the first free item */
+
+        size_t* item = (size_t*) wp->free_first;
+
+        /*
+         * now the first free item will be marked as used,
+         * so put the next free item as the new first free item.
+         */
+
+        wp->free_first = (size_t*) *item;
+        wp->free_count--;
+    
+        /* 
+         * put the address of the page in the header of the item.
+         * this will be useful when we want to free an item.
+         */
+
+        *item = (size_t) wp;
+    
+        /* check if this page has become full or not */
+
+        if(wp->free_count == 0)
+        {
+            /* [HINT] we need a better algorithm */
+
+            /* look through all existing pages for free item */
+
+            wp = pool->pages;
+
+            while(wp != NULL)
+            {
+                /* that's it! a page with free item(s) ! */
+
+                if(wp->free_count != 0)
+                {
+                    /* set the page as our working page */
+
+                    pool->working_page = wp;
+                    break;
+                }
+            }
+
+            /* all pages are full, we need a new one */
+
+            if(wp == NULL)
+            {
+                size_t item_count;
+                
+                /* how big the new page should be ? */
+
+                switch(pool->expand_factor)
+                {
+                    /* a new page as big as sum of all existing pages together */
+
+                    case SFPOOL_EXPAND_FACTOR_ONE:
+                        item_count = pool->item_count;
+                        break;
+
+                    /* a new page 2 times bigger than sum of all existing pages together */
+
+                    case SFPOOL_EXPAND_FACTOR_TWO:
+                        item_count = pool->item_count * 2;
+                        break;
+
+                    default:
+                        item_count = pool->item_count;
+                }
+
+                /* set the page as our working page */
+
+                pool->working_page = add_page(pool,item_count);
+            }
+        }
+
+        /* the item lives just a word size after the header :) */
+
+        return (void*) (item + 1);
+    }
+
+    /*
+     * we don't have a working page yet. this only happens when
+     * we have no pages, this is the first time of calling sfpool_alloc().
+     */
+
+    /*
+     * this is our first page, so we don't need
+     * to consider the expand factor.
+     */
+
+    pool->working_page = add_page(pool,item_count);
+
+    return sfpool_alloc(pool);
 }
