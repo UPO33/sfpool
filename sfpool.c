@@ -21,8 +21,8 @@ static size_t round_size (size_t size)
     {
         size += WORD_SIZE - mod;
     }
-    
-	return size;
+
+    return size;
 }
 
 struct sfpool* sfpool_create (size_t item_size,size_t item_count)
@@ -39,7 +39,7 @@ struct sfpool* sfpool_create (size_t item_size,size_t item_count)
     memset(pool,0,sizeof(struct sfpool));
 
     /*
-     * round the size of each item according system word size and put
+     * round the size of each item according to system word size and put
      * some extra bytes (paddings) in order to make each item start
      * on word sized boundary address. this will result in higher speed
      * performance. but on the other hand it wastes memory as well.
@@ -77,7 +77,9 @@ void sfpool_destroy (struct sfpool* pool)
 
 static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
 {
-    size_t raw_size = ((WORD_SIZE + pool->item_size) * item_count) + sizeof(struct sfpool_page);
+    size_t raw_size = ((WORD_SIZE + pool->item_size) * item_count) +
+                      sizeof(struct sfpool_page);
+
     struct sfpool_page* page = (struct sfpool_page*) malloc(raw_size);
 
     if(page == NULL)
@@ -137,6 +139,11 @@ static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
     *header = 0x0;
 
     return page;
+}
+
+static void delete_page (struct sfpool* pool,struct sfpool_page* page)
+{
+
 }
 
 void* sfpool_alloc (struct sfpool* pool)
@@ -204,13 +211,19 @@ void* sfpool_alloc (struct sfpool* pool)
 
                 switch(pool->expand_factor)
                 {
-                    /* a new page as big as sum of all existing pages together */
+                    /*
+                     * a new page as big as sum of
+                     * all existing pages together
+                     */
 
                     case SFPOOL_EXPAND_FACTOR_ONE:
                         item_count = pool->item_count;
                         break;
 
-                    /* a new page 2 times bigger than sum of all existing pages together */
+                    /* 
+                     * a new page 2 times bigger than sum of
+                     * all existing pages together
+                     */
 
                     case SFPOOL_EXPAND_FACTOR_TWO:
                         item_count = pool->item_count * 2;
@@ -244,4 +257,36 @@ void* sfpool_alloc (struct sfpool* pool)
     pool->working_page = add_page(pool,item_count);
 
     return sfpool_alloc(pool);
+}
+
+void sfpool_free (struct sfpool* pool,void* ptr)
+{
+    /* header lives just a word size before the item */
+
+    size_t* header = ((size_t*) (ptr)) - 1;
+
+    /* header's data is a address to the owner page */
+
+    struct sfpool_page* page = (struct sfpool_page*) *header;
+
+    /*
+     * make this item free by inserting the address of other free item in it.
+     * then put this item as our new free item.
+     */
+
+    *header = (size_t) page->free_first;
+    page->free_first = header;
+    page->free_count++;
+
+    /* if the owner page is entirely free */
+
+    if(page->free_count == page->item_count)
+    {
+        /* if the owner page is not the working page, then delete it */
+
+        if(pool->working_page != page)
+        {
+            delete_page(page);
+        }
+    }
 }
