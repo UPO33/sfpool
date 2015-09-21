@@ -1,6 +1,6 @@
 #include "sfpool.h"
 
-#define WORD_SIZE ((size_t) - 1)
+#define WORD_SIZE (sizeof(size_t))
 
 /*
  * round the given size by system word size (word size is 4 bytes in 32-bits
@@ -25,7 +25,7 @@ static size_t round_size (size_t size)
     return size;
 }
 
-struct sfpool* sfpool_create (size_t item_size,size_t item_count)
+struct sfpool* sfpool_create (size_t item_size,size_t item_count,enum SFPOOL_EXPAND_FACTOR expand_factor)
 {
     /* reserve a memory block for the pool object */
 
@@ -44,14 +44,10 @@ struct sfpool* sfpool_create (size_t item_size,size_t item_count)
      * on word sized boundary address. this will result in higher speed
      * performance. but on the other hand it wastes memory as well.
      */
-    
+
     pool->item_size = round_size(item_size);
-
-    /* check the previous pages and find out how big this page should be ? */
-
-    if(pool->pages != NULL) /* so there are already some pages in the pool */
-    {
-    }
+    pool->item_count = item_count;
+    pool->expand_factor = expand_factor;
 
     return pool;
 }
@@ -95,6 +91,8 @@ static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
 
     page->prev = pool->pages;
     page->next = NULL;
+    page->item_count = item_count;
+    page->free_count = item_count;
 
     if(pool->pages != NULL)
     {
@@ -137,6 +135,7 @@ static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
     }
 
     *header = 0x0;
+    page->free_first = (size_t*) start_address;
 
     return page;
 }
