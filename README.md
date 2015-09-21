@@ -1,2 +1,22 @@
-# sfpool
-Simple Fast Memory Pool
+# Introduction
+
+sfpool (Simple Fast Pool) is a another memory pool allocator
+library (if it is a library at all).
+
+# What is a memory pool ? (from https://en.wikipedia.org/wiki/Memory_pool)
+
+Memory pools, also called fixed-size blocks allocation, is the use of
+pools for memory management that allows dynamic memory allocation comparable
+to malloc or C++'s operator new. As those implementations suffer from
+fragmentation because of variable block sizes, it is not recommendable
+to use them in a real time system due to performance. A more efficient
+solution is preallocating a number of memory blocks with the same size
+called the memory pool.
+
+# Features
+
+* simple
+* fast
+* lightweight
+* written in C99
+* clean ,understandable code that makes it easy to debug.
