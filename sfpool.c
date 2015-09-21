@@ -143,7 +143,52 @@ static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
 
 static void delete_page (struct sfpool* pool,struct sfpool_page* page)
 {
+    size_t item_count = page->item_count;
 
+    if(page->prev) page->prev->next = page->next;
+    if(page->next) page->next->prev = page->prev;
+
+    /* if the first page is the page itself */
+
+    if(pool->pages == page)
+    {
+        pool->pages = page->prev;
+    }
+
+    /* if the page is the working page */
+
+    if(pool->working_page == page)
+    {
+        /* look through all pages for a page which has free items */
+
+        struct sfpool_page* it = pool->pages;
+
+        while(it != NULL)
+        {
+            /* this page has free items */
+
+            if(it->free_count != 0)
+            {
+                /* set the page as our working page */
+
+                pool->working_page = it;
+                break;
+            }
+
+            it = it->prev;
+        }
+    }
+
+    pool->item_count -= item_count;
+    pool->page_count--;
+
+    /* if this was the last page */
+
+    if(pool->page_count == 0)
+    {
+        pool->item_count = item_count;
+        return;
+    }
 }
 
 void* sfpool_alloc (struct sfpool* pool)
@@ -199,6 +244,8 @@ void* sfpool_alloc (struct sfpool* pool)
                     pool->working_page = wp;
                     break;
                 }
+
+                wp = wp->prev;
             }
 
             /* all pages are full, we need a new one */
@@ -254,7 +301,7 @@ void* sfpool_alloc (struct sfpool* pool)
      * to consider the expand factor.
      */
 
-    pool->working_page = add_page(pool,item_count);
+    pool->working_page = add_page(pool,pool->item_count);
 
     return sfpool_alloc(pool);
 }
@@ -284,9 +331,6 @@ void sfpool_free (struct sfpool* pool,void* ptr)
     {
         /* if the owner page is not the working page, then delete it */
 
-        if(pool->working_page != page)
-        {
-            delete_page(page);
-        }
+        delete_page(pool,page);
     }
 }
