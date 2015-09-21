@@ -2,6 +2,11 @@
 
 #define WORD_SIZE ((size_t) - 1)
 
+/*
+ * round the given size by system word size (word size is 4 bytes in 32-bits
+ * and 8 bytes in 64-bits systems). we'll use this for address alignment.
+ */
+
 static size_t round_size (size_t size)
 {
     if(size < WORD_SIZE)
@@ -52,6 +57,25 @@ struct sfpool* sfpool_create (size_t item_size,size_t item_count)
     return pool;
 }
 
+void sfpool_destroy (struct sfpool* pool)
+{
+    if(pool == NULL)
+    {
+        return;
+    }
+
+    struct sfpool_page* it,*prev;
+
+    it = pool->pages;
+
+    while(it != NULL)
+    {
+        prev = it->prev;
+        free(it);
+        it = prev;
+    }
+}
+
 static int add_page (struct sfpool* pool,size_t item_count)
 {
     size_t raw_size = ((WORD_SIZE + pool->item_size) * item_count) + sizeof(struct sfpool_page);
@@ -62,7 +86,7 @@ static int add_page (struct sfpool* pool,size_t item_count)
         return 1;
     }
 
-    /* initializing the new page */
+    /* initialize the new page */
 
     page->pool = pool;
 
@@ -75,6 +99,12 @@ static int add_page (struct sfpool* pool,size_t item_count)
     {
         pool->pages->next = page;
     }
+
+    /* 
+     * if the working page is not set,
+     * then set this page to the working page.
+     */
+
     if(pool->working_page == NULL)
     {
         pool->working_page = page;
@@ -89,6 +119,13 @@ static int add_page (struct sfpool* pool,size_t item_count)
     unsigned char* start_address = (unsigned char*) &page->items;
     size_t* header = (size_t*) start_address;
     size_t* header_next = NULL;
+
+    /*
+     * 'distance' is the distance between this header and next header.
+     * the size is not actually in bytes, but it rather was divided
+     * by WORD_SIZE to make 'header' address increased by.
+     */
+
     size_t distance = (WORD_SIZE + pool->item_size) / WORD_SIZE;
 
     for(size_t i = 0;i < (item_count - 1);i++)
