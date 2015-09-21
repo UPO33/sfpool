@@ -1,7 +1,7 @@
 # Introduction
 
 sfpool (Simple Fast Pool) is a another memory pool allocator
-library (if it is a library at all).
+library written in C99 (if its a library at all).
 
 # What is a memory pool?
 
