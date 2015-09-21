@@ -53,7 +53,7 @@ struct sfpool_page
     /* the rest of stuff are arbitrary sized and may not be defined here ! */
 };
 
-struct sfpool* sfpool_create (size_t item_size,size_t item_count);
+struct sfpool* sfpool_create (size_t item_size,size_t item_count,enum SFPOOL_EXPAND_FACTOR expand_factor);
 void sfpool_destroy (struct sfpool* pool);
 void* sfpool_alloc (struct sfpool* pool);
 void sfpool_free (struct sfpool* pool,void* item);
