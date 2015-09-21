@@ -54,7 +54,7 @@ struct sfpool_page
 };
 
 struct sfpool* sfpool_create (size_t item_size,size_t item_count);
-int sfpool_destroy (struct sfpool* pool);
+void sfpool_destroy (struct sfpool* pool);
 void* sfpool_alloc (struct sfpool* pool);
 void sfpool_free (struct sfpool* pool,void* item);
 void sfpool_dump (struct sfpool* pool);
