@@ -65,8 +65,6 @@ struct sfpool_page
     size_t* free_first;
 
     void* blocks;
-
-    /* the rest of stuff are arbitrary sized and may not be defined here ! */
 };
 
 /* block iterator. is useful for iterating through used blocks */
