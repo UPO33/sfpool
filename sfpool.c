@@ -23,6 +23,7 @@ static size_t round_size (size_t size)
 
     return size;
 }
+
 struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXPAND_FACTOR expand_factor)
 {
     /* reserve a memory block for the pool object */
@@ -288,73 +289,118 @@ void sfpool_dump (struct sfpool* pool)
     pool->block_count,
     pool->page_count,
     pool->expand_factor);
+
+    struct sfpool_page* page = pool->all_pages;
+    size_t* header = 0;
+
+    for(size_t i = 0;i < pool->page_count;i++)
+    {
+        printf("PAGE { ");
+        header = &page->blocks;
+
+        for(size_t count = 0;count < page->block_count;count++)
+        {
+            if(*header == (size_t) page)
+            {
+                printf("1");
+            }
+            else
+            {
+                printf("0");
+            }
+
+            header = header + (WORD_SIZE + pool->block_size) / WORD_SIZE;
+        }
+
+        page = page->next;
+
+        printf(" }\n");
+    }
+}
+
+static void* first_used_block (struct sfpool* pool,struct sfpool_page* page,void* block)
+{
+    size_t* header = ((size_t*) block) - 1;
+    size_t count = 0;
+    size_t distance = (WORD_SIZE + pool->block_size) / WORD_SIZE;
+
+    /* start from the given page and check every block's header */
+    while(page != NULL)
+    {
+        count = 0;
+        header = ((size_t*) block) - 1;
+        
+        /* check all blocks of the page */
+        while(count != page->block_count)
+        {
+            /* is this a used block */
+            if(*header == ((size_t) page))
+            {
+                /* yes! this is a used block! */
+                return (void*) (header + 1);
+            }
+
+            header = header + distance;
+            count++;
+        }
+
+        page = page->next;
+    }
+
+    /* unfortunately we have no used blocks */
+    return NULL;
 }
 
 void* sfpool_it_init (struct sfpool* pool,struct sfpool_it* it,void* block)
 {
-    struct sfpool_page* page = pool->all_pages;
+    struct sfpool_page* page;
     size_t* header;
 
     memset(it,0,sizeof(struct sfpool_it));
 
-    /* if the block is not given */
+    /* if the block is given as NULL */
     if(block == NULL)
-    {
-        /* if we have no pages, then just return NULL */
-        if(page == NULL)
-        {
-            return NULL;
-        }
-
-        size_t count = 0;
-        size_t distance = (WORD_SIZE + pool->block_size) / WORD_SIZE;
-
-        /* start from first page and check every block's header */
-        while(page != NULL)
-        {
-            count = 0;
-            header = ((size_t*) &page->blocks);
-            
-            /* check all blocks of the page */
-            while(count != page->item_count)
-            {
-                /* is this a used block */
-                if(*header == ((size_t) page))
-                {
-                    /* 
-                     * yes! this is a used block!
-                     * now initialize the iterator object
-                     */
-
-                    it->page = page;
-                    it->block_size = pool->block_size;
-                    it->block_pos = count;
-                    
-                    /* return the block address */
-                    return (void*) (header + 1);
-                }
-
-                header = header + distance;
-                count++;
-            }
-
-            page = page->next;
-        }
-
-        /* unfortunately we have no used blocks */
-        return NULL;
+    { 
+        /* use the first used block as default */
+        page = pool->all_pages;
+        block = ((size_t*) (&page->blocks)) + 1;
     }
 
     /* if the block is an allocated block */
     header = ((size_t*) block) - 1;
-    size_t* diff = (size_t) ((size_t) header) - ((size_t) &page->blocks);
-    size_t size = WORD_SIZE + pool->block_size;
-    size_t pos = ((size_t) diff) / size;
+    page = (struct sfpool_page*) *header;
+    block = first_used_block(pool,page,block);
+
+    /* unfortunately we have no used blocks */
+    if(block == NULL)
+    {
+        return NULL;
+    }
 
     /* now initialize the iterator object */
     it->page = page;
+    it->header = header;
     it->block_size = pool->block_size;
-    it->block_pos = ((size_t) diff) / size;
 
     return block;
+}
+
+void* sfpool_it_next (struct sfpool_it* it)
+{    
+    void* block = ((size_t*) (it->header)) + 1;
+    block = first_used_block(it->page->pool,it->page,block);
+
+    /* unfortunately we have no used blocks */
+    if(block == NULL)
+    {
+        memset(it,0,sizeof(struct sfpool_it));
+        return NULL;
+    }
+
+    /* now initialize the iterator object */
+
+    it->header = ((size_t*) block) - 1;
+    it->page = (struct sfpool_page*) *it->header;
+
+   return block;
 }
