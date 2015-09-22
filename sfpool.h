@@ -73,7 +73,6 @@ struct sfpool_it
     struct sfpool_page* page;
     size_t* header;
     size_t block_size;
-    size_t block_pos;
 };
 
 /*
