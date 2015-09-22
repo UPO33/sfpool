@@ -62,5 +62,6 @@ void sfpool_destroy (struct sfpool* pool);
 void* sfpool_alloc (struct sfpool* pool);
 void sfpool_free (struct sfpool* pool,void* block);
 void sfpool_dump (struct sfpool* pool);
+void* sfpool_iterate (struct sfpool* pool,void* block);
 
 #endif /* SFPOOL_H_ */
