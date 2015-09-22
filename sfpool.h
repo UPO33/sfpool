@@ -25,8 +25,8 @@ struct sfpool_page;
 
 struct sfpool
 {
-    size_t item_size;
-    size_t item_count;
+    size_t block_size;
+    size_t block_count;
 
     size_t page_count;
     size_t page_size;
@@ -47,20 +47,20 @@ struct sfpool_page
     struct sfpool_page* prev_free;
     struct sfpool_page* next_free;
 
-    size_t item_count;
+    size_t block_count;
     size_t free_count;
 
     size_t* free_first;
 
-    void* items;
+    void* blocks;
 
     /* the rest of stuff are arbitrary sized and may not be defined here ! */
 };
 
-struct sfpool* sfpool_create (size_t item_size,size_t page_size,enum SFPOOL_EXPAND_FACTOR expand_factor);
+struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXPAND_FACTOR expand_factor);
 void sfpool_destroy (struct sfpool* pool);
 void* sfpool_alloc (struct sfpool* pool);
-void sfpool_free (struct sfpool* pool,void* item);
+void sfpool_free (struct sfpool* pool,void* block);
 void sfpool_dump (struct sfpool* pool);
 
 #endif /* SFPOOL_H_ */

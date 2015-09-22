@@ -23,7 +23,7 @@ static size_t round_size (size_t size)
 
     return size;
 }
-struct sfpool* sfpool_create (size_t item_size,size_t page_size,enum SFPOOL_EXPAND_FACTOR expand_factor)
+struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXPAND_FACTOR expand_factor)
 {
     /* reserve a memory block for the pool object */
     struct sfpool* pool = malloc(sizeof(struct sfpool));
@@ -36,12 +36,12 @@ struct sfpool* sfpool_create (size_t item_size,size_t page_size,enum SFPOOL_EXPA
     memset(pool,0,sizeof(struct sfpool));
 
     /*
-     * round the size of each item according to system word size and put
-     * some extra bytes (paddings) in order to make each item start
+     * round the size of each block according to system word size and put
+     * some extra bytes (paddings) in order to make each block start
      * on word sized boundary address. this will result in higher speed
      * performance. but on the other hand it wastes memory as well.
      */
-    pool->item_size = round_size(item_size);
+    pool->block_size = round_size(block_size);
     pool->page_size = page_size;
     pool->expand_factor = expand_factor;
 
@@ -69,7 +69,7 @@ void sfpool_destroy (struct sfpool* pool)
 
 static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACTOR expand_factor)
 {
-    size_t raw_size = ((WORD_SIZE + pool->item_size) * pool->page_size) +
+    size_t raw_size = ((WORD_SIZE + pool->block_size) * pool->page_size) +
                       sizeof(struct sfpool_page);
 
     struct sfpool_page* page = (struct sfpool_page*) malloc(raw_size);
@@ -100,17 +100,17 @@ static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACT
         pool->free_pages->prev_free = page;
     }
 
-    page->item_count = pool->page_size;
+    page->block_count = pool->page_size;
     page->free_count = pool->page_size;
 
     pool->all_pages = page;
     pool->free_pages = page;
 
-    pool->item_count += pool->page_size;
+    pool->block_count += pool->page_size;
     pool->page_count++;
 
-    /* generate free items */
-    unsigned char* start_address = (unsigned char*) &page->items;
+    /* generate free blocks */
+    unsigned char* start_address = (unsigned char*) &page->blocks;
     size_t* header = (size_t*) start_address;
     size_t* header_next = NULL;
 
@@ -119,7 +119,7 @@ static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACT
      * the size is not actually in bytes, but it rather was divided
      * by WORD_SIZE to make 'header' address increased by.
      */
-    size_t distance = (WORD_SIZE + pool->item_size) / WORD_SIZE;
+    size_t distance = (WORD_SIZE + pool->block_size) / WORD_SIZE;
 
     for(size_t i = 0;i < (pool->page_size - 1);i++)
     {
@@ -153,13 +153,13 @@ static void delete_page (struct sfpool* pool,struct sfpool_page* page)
         pool->free_pages = page->next;
     }
 
-    pool->item_count -= page->item_count;
+    pool->block_count -= page->block_count;
     pool->page_count--;
 
     /* if this was the last page */
     if(pool->page_count == 0)
     {
-        pool->page_size = page->item_count;
+        pool->page_size = page->block_count;
         return;
     }
 }
@@ -173,31 +173,31 @@ void* sfpool_alloc (struct sfpool* pool)
     if(page != NULL)
     {
         /*
-         * check if the page has any free items to be allocated,
+         * check if the page has any free blocks to be allocated,
          * if so, then allocate it !
          */
 
         if(page->free_count != 0)
         {
 
-            /* get the address of the first free item */
-            size_t* item = (size_t*) page->free_first;
+            /* get the address of the first free block */
+            size_t* block = (size_t*) page->free_first;
 
             /*
-             * mark the first free item as used ,
-             * then put the next free item as the new first free item.
+             * mark the first free block as used ,
+             * then put the next free block as the new first free block.
              */
             page->free_count--;
-            page->free_first = (size_t*) *item;
+            page->free_first = (size_t*) *block;
 
             /* 
-             * put the address of the page in the header of the item.
-             * this will be useful when we want to free an item.
+             * put the address of the page in the header of the block.
+             * this will be useful when we want to free an block.
              */
-            *item = (size_t) page;
+            *block = (size_t) page;
     
-            /* the item lives just a word size after the header :) */
-            return (void*) (item + 1);
+            /* the block lives just a word size after the header :) */
+            return (void*) (block + 1);
          }
     }
 
@@ -254,22 +254,22 @@ void* sfpool_alloc (struct sfpool* pool)
 
 void sfpool_free (struct sfpool* pool,void* ptr)
 {
-    /* header lives just a word size before the item */
+    /* header lives just a word size before the block */
     size_t* header = ((size_t*) (ptr)) - 1;
 
     /* header's data is ae address to the owner page */
     struct sfpool_page* page = (struct sfpool_page*) *header;
 
     /*
-     * make this item free by inserting the address of other free item in it.
-     * then put this item as our new free item.
+     * make this block free by inserting the address of other free block in it.
+     * then put this block as our new free block.
      */
     *header = (size_t) page->free_first;
     page->free_first = header;
     page->free_count++;
 
     /* if the owner page is entirely free */
-    if(page->free_count == page->item_count)
+    if(page->free_count == page->block_count)
     {
         delete_page(pool,page);
     }
@@ -279,13 +279,13 @@ void sfpool_dump (struct sfpool* pool)
 {
     printf(
     "== SFPOOL ==\n"
-    "item_size      : %u\n"
-    "item_count     : %u\n"
+    "block_size      : %u\n"
+    "block_count     : %u\n"
     "page_count     : %u\n"
     "expand_factor  : %u\n"
     "============\n",
-    pool->item_size,
-    pool->item_count,
+    pool->block_size,
+    pool->block_count,
     pool->page_count,
     pool->expand_factor);
 }
