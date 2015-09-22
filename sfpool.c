@@ -72,7 +72,6 @@ static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACT
     size_t raw_size = ((WORD_SIZE + pool->item_size) * pool->page_size) +
                       sizeof(struct sfpool_page);
 
-    printf("CUR[%u] - ADD_PAGE() : %u\n",pool->page_count,pool->page_size);
     struct sfpool_page* page = (struct sfpool_page*) malloc(raw_size);
 
     if(page == NULL)
@@ -137,8 +136,6 @@ static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACT
 
 static void delete_page (struct sfpool* pool,struct sfpool_page* page)
 {
-    printf("CUR[%u] - DELTE_PAGE() : %u\n",pool->page_count,page->item_count);
-
     if(page->prev) page->prev->next = page->next;
     if(page->next) page->next->prev = page->prev;
 
@@ -285,7 +282,8 @@ void sfpool_dump (struct sfpool* pool)
     "item_size      : %u\n"
     "item_count     : %u\n"
     "page_count     : %u\n"
-    "expand_factor  : %u\n",
+    "expand_factor  : %u\n"
+    "============\n",
     pool->item_size,
     pool->item_count,
     pool->page_count,
