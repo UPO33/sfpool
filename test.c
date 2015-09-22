@@ -52,7 +52,7 @@ static void func1 (void)
         if(p)
         {
             *p = sfpool_alloc(pool);
-            printf("ALLOC : %p\n",*p);
+            //printf("ALLOC : %p\n",*p);
             if(*p == NULL)
             {
                 sleep(5000);
@@ -64,57 +64,15 @@ static void func1 (void)
 
 static void func2 (void)
 {
-    //printf("ALLOC 2\n");
-    for(int i = 0;i < 2;i++)
-    {
-        void** p = find_slot_free();
-        if(p)
-        {
-            *p = sfpool_alloc(pool);
-        }
-    }
-}
-
-static void func3 (void)
-{
-    //printf("ALLOC 3\n");
-    for(int i = 0;i < 3;i++)
-    {
-        void** p = find_slot_free();
-        if(p)
-        {
-            *p = sfpool_alloc(pool);
-        }
-    }
-}
-
-static void func4 (void)
-{
     void** p = find_slot_used();
     if(p)
     {
         sfpool_free(pool,*p);
-        printf("FREE : %p\n",*p);
+        //printf("FREE : %p\n",*p);
         *p = NULL;
     }
 }
-
-static void func5 (void)
-{
-    //printf("FREE 5\n");
-    for(size_t i = 0; i < 5;i ++)
-    {
-        void** p = find_slot_used();
-        if(p)
-        {
-            sfpool_free(pool,*p);
-            *p = NULL;
-        }
-    }
-}
-
-//void (*func[5]) (void) = { func1,func2,func3,func4,func5 };
-void (*func[2]) (void) = { func1,func4 };
+void (*func[2]) (void) = { func1,func2 };
 
 int main (void)
 {
