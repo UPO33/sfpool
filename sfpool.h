@@ -78,9 +78,11 @@ struct sfpool_it
 
 /*
  * dis: create and initialize a pool object
+ *
  * arg: size of each block of pool
  * arg: how many blocks a page must maintain?
  * arg: how should this pool be expanded?
+ *
  * ret: a pointer to a pool object when function succeeds,
  *      returns NULL if it fails.
  */
@@ -90,14 +92,18 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,
 
 /*
  * dis: destroy a valid pool object
+ *
  * arg: a pointer to pool object
+ *
  * ret:
  */
 void sfpool_destroy (struct sfpool* pool);
 
 /*
  * dis: allocate a new block from memory pool
+ *
  * arg: pointer to pool object
+ *
  * ret: returns address of the allocated block if function succeeds,
  *      otherwise returns NULL if it fails for any reason.
  */
@@ -105,24 +111,30 @@ void* sfpool_alloc (struct sfpool* pool);
 
 /*
  * dis: free an allocated block
+ *
  * arg: pointer to pool object
  * arg: pointer to an allocated block
+ *
  * ret: 
  */
 void sfpool_free (struct sfpool* pool,void* block);
 
 /*
  * dis: print status of memory pool
+ *
  * arg: pointer to pool object
+ *
  * ret: 
  */
 void sfpool_dump (struct sfpool* pool);
 
 /*
  * dis: initialize an iterator
+ *
  * arg: pointer to pool object
  * arg: pointer to iterator object
  * arg: pointer to block. both allocated and NULL are permitted.
+ *
  * ret: a pointer to the block. if the block is NULL, then
  *      returns a pointer to first block of memory pool.
  *      it also initialize 'it' iterator object and makes
@@ -132,24 +144,26 @@ void* sfpool_it_init (struct sfpool* pool,struct sfpool_it* it,void* block);
 
 /*
  * dis: get the next block
- * arg: pointer to pool object
+ *
  * arg: pointer to iterator object
+ *
  * ret: a pointer to the next block. if it exeeds
  *      the last block then it returns NULL.
  *      it also changes 'it' iterator object to point to
  *      the next block.
  */
-void* sfpool_it_next (struct sfpool* pool,struct sfpool_it* it);
+void* sfpool_it_next (struct sfpool_it* it);
 
 /*
  * dis: get the previous block
- * arg: pointer to pool object
+ *
  * arg: pointer to iterator object
+ *
  * ret: a pointer to the previous block. if it exeeds
  *      the first block then it returns NULL.
  *      it also changes 'it' iterator object to point to
  *      the previous block.
  */
-void* sfpool_it_prev (struct sfpool* pool,struct sfpool_it* it);
+void* sfpool_it_prev (struct sfpool_it* it);
 
 #endif /* SFPOOL_H_ */
