@@ -289,3 +289,72 @@ void sfpool_dump (struct sfpool* pool)
     pool->page_count,
     pool->expand_factor);
 }
+
+void* sfpool_it_init (struct sfpool* pool,struct sfpool_it* it,void* block)
+{
+    struct sfpool_page* page = pool->all_pages;
+    size_t* header;
+
+    memset(it,0,sizeof(struct sfpool_it));
+
+    /* if the block is not given */
+    if(block == NULL)
+    {
+        /* if we have no pages, then just return NULL */
+        if(page == NULL)
+        {
+            return NULL;
+        }
+
+        size_t count = 0;
+        size_t distance = (WORD_SIZE + pool->block_size) / WORD_SIZE;
+
+        /* start from first page and check every block's header */
+        while(page != NULL)
+        {
+            count = 0;
+            header = ((size_t*) &page->blocks);
+            
+            /* check all blocks of the page */
+            while(count != page->item_count)
+            {
+                /* is this a used block */
+                if(*header == ((size_t) page))
+                {
+                    /* 
+                     * yes! this is a used block!
+                     * now initialize the iterator object
+                     */
+
+                    it->page = page;
+                    it->block_size = pool->block_size;
+                    it->block_pos = count;
+                    
+                    /* return the block address */
+                    return (void*) (header + 1);
+                }
+
+                header = header + distance;
+                count++;
+            }
+
+            page = page->next;
+        }
+
+        /* unfortunately we have no used blocks */
+        return NULL;
+    }
+
+    /* if the block is an allocated block */
+    header = ((size_t*) block) - 1;
+    size_t* diff = (size_t) ((size_t) header) - ((size_t) &page->blocks);
+    size_t size = WORD_SIZE + pool->block_size;
+    size_t pos = ((size_t) diff) / size;
+
+    /* now initialize the iterator object */
+    it->page = page;
+    it->block_size = pool->block_size;
+    it->block_pos = ((size_t) diff) / size;
+
+    return block;
+}
