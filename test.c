@@ -71,7 +71,7 @@ static void func2 (void)
 
 void (*func[2]) (void) = { func1,func2 };
 
-int main (void)
+int main2 (void)
 {
     signal(SIGINT,sighandler);
     memset(ptrs,0,sizeof(ptrs));
@@ -85,6 +85,37 @@ int main (void)
         func[rand() % 2]();
     }
     
+    sfpool_dump(pool);
+    return 0;
+}
+
+int main (void)
+{
+    signal(SIGINT,sighandler);
+    memset(ptrs,0,sizeof(ptrs));
+
+    pool = sfpool_create (1,8,SFPOOL_EXPAND_FACTOR_ONE);
+
+    srand(clock());
+
+    for(int i = 0;i < 9;i++)
+    {
+        ptrs[i] = sfpool_alloc(pool);
+        *((size_t*) ptrs[i]) = i;
+    }
+
+    sfpool_free(pool,ptrs[0]);
+    sfpool_free(pool,ptrs[2]);
+
+    struct sfpool_it it;
+    void* b = sfpool_it_init(pool,&it,NULL);
+    while(b)
+    {
+        printf("CUR -> 0x%X\n",b);
+        getchar();
+        b = sfpool_it_next(&it);
+    }
+
     sfpool_dump(pool);
     return 0;
 }
