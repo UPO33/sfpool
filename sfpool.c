@@ -25,7 +25,7 @@ static size_t round_size (size_t size)
     return size;
 }
 
-struct sfpool* sfpool_create (size_t item_size,size_t item_count,enum SFPOOL_EXPAND_FACTOR expand_factor)
+struct sfpool* sfpool_create (size_t item_size,size_t page_size,enum SFPOOL_EXPAND_FACTOR expand_factor)
 {
     /* reserve a memory block for the pool object */
 
@@ -46,7 +46,7 @@ struct sfpool* sfpool_create (size_t item_size,size_t item_count,enum SFPOOL_EXP
      */
 
     pool->item_size = round_size(item_size);
-    pool->item_count = item_count;
+    pool->page_size = page_size;
     pool->expand_factor = expand_factor;
 
     return pool;
@@ -71,9 +71,10 @@ void sfpool_destroy (struct sfpool* pool)
     }
 }
 
-static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
+static struct sfpool_page* add_page (struct sfpool* pool,size_t page_size)
 {
-    size_t raw_size = ((WORD_SIZE + pool->item_size) * item_count) +
+    printf("ADD_PAGE() : %u\n",page_size);
+    size_t raw_size = ((WORD_SIZE + pool->item_size) * page_size) +
                       sizeof(struct sfpool_page);
 
     struct sfpool_page* page = (struct sfpool_page*) malloc(raw_size);
@@ -87,29 +88,32 @@ static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
 
     page->pool = pool;
 
-    /* link the last page and this page together */
+    /* add this page at the start of all_pages list */
 
-    page->prev = pool->pages;
-    page->next = NULL;
+    page->next = pool->all_pages;
+    page->prev = NULL;
+
+    if(pool->all_pages != NULL)
+    {
+        pool->all_pages->prev = page;
+    }
+
+    /* add this page at the end of free_pages list */
+
+    page->next_free = pool->free_pages;
+    page->prev_free = NULL;
+
+    if(pool->free_pages != NULL)
+    {
+        pool->free_pages->prev_free = page;
+    }
+
     page->item_count = item_count;
     page->free_count = item_count;
 
-    if(pool->pages != NULL)
-    {
-        pool->pages->next = page;
-    }
+    pool->all_pages = page;
+    pool->free_pages = page;
 
-    /* 
-     * if the working page is not set,
-     * then set this page to the working page.
-     */
-
-    if(pool->working_page == NULL)
-    {
-        pool->working_page = page;
-    }
-
-    pool->pages = page;
     pool->item_count += item_count;
     pool->page_count++;
 
@@ -127,7 +131,7 @@ static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
 
     size_t distance = (WORD_SIZE + pool->item_size) / WORD_SIZE;
 
-    for(size_t i = 0;i < (item_count - 1);i++)
+    for(size_t i = 0;i < (page_size - 1);i++)
     {
         header_next = header + distance;
         *header = (size_t) header_next;
@@ -142,6 +146,7 @@ static struct sfpool_page* add_page (struct sfpool* pool,size_t item_count)
 
 static void delete_page (struct sfpool* pool,struct sfpool_page* page)
 {
+    printf("DELTE_PAGE() : %u\n",page->item_count);
     size_t item_count = page->item_count;
 
     if(page->prev) page->prev->next = page->next;
@@ -214,6 +219,7 @@ void* sfpool_alloc (struct sfpool* pool)
 
         wp->free_first = (size_t*) *item;
         wp->free_count--;
+        printf("page [%p] : free [%u]\n",wp,wp->free_count);
     
         /* 
          * put the address of the page in the header of the item.
@@ -238,6 +244,7 @@ void* sfpool_alloc (struct sfpool* pool)
 
                 if(wp->free_count != 0)
                 {
+                    printf("JUNK PAGE !!!!!!!!!1\n");
                     /* set the page as our working page */
 
                     pool->working_page = wp;
@@ -279,28 +286,42 @@ void* sfpool_alloc (struct sfpool* pool)
                         item_count = pool->item_count;
                 }
 
-                /* set the page as our working page */
+                /* request a new page and set it as our working page */
 
                 pool->working_page = add_page(pool,item_count);
+
+                /* if the requested page could not be created for any reason */
+
+                if(pool->working_page == NULL)
+                {
+                    return NULL;
+                }
             }
         }
 
         /* the item lives just a word size after the header :) */
-
+        
         return (void*) (item + 1);
     }
 
+    printf("page no WP! ----------------------------------\n");
     /*
      * we don't have a working page yet. this only happens when
-     * we have no pages, this is the first time of calling sfpool_alloc().
-     */
-
-    /*
-     * this is our first page, so we don't need
-     * to consider the expand factor.
+     *
+     *  - we have no pages
+     *  - this is the first time of calling sfpool_alloc()
+     *  - all pages are full and add_page() failed.
      */
 
     pool->working_page = add_page(pool,pool->item_count);
+    printf("item_count : %u\n",pool->item_count);
+
+    /* if the requested page could not be created for any reason */
+
+    if(pool->working_page == NULL)
+    {
+        return NULL;
+    }
 
     return sfpool_alloc(pool);
 }
@@ -332,4 +353,18 @@ void sfpool_free (struct sfpool* pool,void* ptr)
 
         delete_page(pool,page);
     }
+}
+
+void sfpool_dump (struct sfpool* pool)
+{
+    printf(
+    "== SFPOOL ==\n"
+    "item_size      : %u\n"
+    "item_count     : %u\n"
+    "page_count     : %u\n"
+    "expand_factor  : %u\n",
+    pool->item_size,
+    pool->item_count,
+    pool->page_count,
+    pool->expand_factor);
 }
