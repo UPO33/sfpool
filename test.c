@@ -104,16 +104,25 @@ int main (void)
         *((size_t*) ptrs[i]) = i;
     }
 
-    sfpool_free(pool,ptrs[0]);
-    sfpool_free(pool,ptrs[2]);
+    //sfpool_free(pool,ptrs[0]);
+    //sfpool_free(pool,ptrs[2]);
 
     struct sfpool_it it;
-    void* b = sfpool_it_init(pool,&it,NULL);
+    size_t* b;
+
+    b = sfpool_it_init(pool,&it,ptrs[8]);
     while(b)
-    {
-        printf("CUR -> 0x%X\n",b);
-        getchar();
+    {   
+        printf("CUR %p/%u = %X\n",it.page,it.block_pos,*b);
         b = sfpool_it_next(&it);
+    }
+
+    printf("-----------------------\n");
+    b = sfpool_it_init(pool,&it,ptrs[3]);
+    while(b)
+    {   
+        printf("CUR %p/%u = %X\n",it.page,it.block_pos,*b);
+        b = sfpool_it_prev(&it);
     }
 
     sfpool_dump(pool);

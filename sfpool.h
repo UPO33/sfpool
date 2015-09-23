@@ -26,6 +26,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+typedef size_t bool_t;
+
 enum SFPOOL_EXPAND_FACTOR
 {
     SFPOOL_EXPAND_FACTOR_ONE = 0,
@@ -39,6 +41,7 @@ struct sfpool
 {
     size_t block_size;
     size_t block_count;
+    size_t block_distance;
 
     size_t page_count;
     size_t page_size;
@@ -67,7 +70,7 @@ struct sfpool_page
     void* blocks;
 };
 
-/* block iterator. is useful for iterating through used blocks */
+/* block iterator. is useful for iterating through blocks */
 struct sfpool_it
 {
     struct sfpool_page* page;
