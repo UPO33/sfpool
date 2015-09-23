@@ -300,7 +300,7 @@ void sfpool_dump (struct sfpool* pool)
         printf("PAGE { ");
 
         /* get first block header of the page */
-        header = &page->blocks;
+        header = (size_t*) &page->blocks;
 
         /* walk through all blocks and print whether if they're used or not */
         for(size_t count = 0;count < page->block_count;count++)
@@ -403,7 +403,7 @@ void* sfpool_it_init (struct sfpool* pool,struct sfpool_it* it,void* block)
     /* now initialize the iterator object */
     it->page = page;
     it->header = header;
-    it->block_size = pool->block_size;
+    it->block_pos = (((size_t) block) - ((size_t) &page->blocks)) / (WORD_SIZE + pool->block_size);
 
     return block;
 }
@@ -416,11 +416,46 @@ void* sfpool_it_next (struct sfpool_it* it)
         return NULL;
     }
 
+    struct sfpool* pool = it->page->pool;
+
+    /*
+     * goto the next block.
+     * if we're on the last block of the page
+     * then turn the page
+     */
+    if(it->block_pos == (it->page->block_count - 1))
+    {
+        /* goto the next page */
+        it->page = it->page->next;
+
+        /* if there is not any next page */
+        if(it->page == NULL)
+        {
+            /*
+             * this means we have already reached
+             * the last used block of memory pool.
+             * fill the iterator with zero. this
+             * means that the iterator is not valid
+             * anymore.
+             */
+            memset(it,0,sizeof(struct sfpool_it));
+
+            return NULL;
+        }
+
+        it->header = &it->page->blocks;
+    }
+    /* goto the next block. just go */
+    else
+    {
+        it->header += (pool->block_size + WORD_SIZE) / WORD_SIZE;
+    }
+
     /* get block of the last iterated header */
     void* block = ((size_t*) (it->header)) + 1;
 
     /* find the used block which is next to the current block */
-    block = first_used_block(it->page->pool,it->page,block);
+    block = first_used_block(pool,it->page,block);
 
     /* unfortunately we found no used blocks */
     if(block == NULL)
@@ -441,9 +476,9 @@ void* sfpool_it_next (struct sfpool_it* it)
      * we found the next used block
      * now just update the iterator object.
      */
-
     it->header = ((size_t*) block) - 1;
     it->page = (struct sfpool_page*) *it->header;
+    it->block_pos = (((size_t) block) - ((size_t) &it->page->blocks)) / (WORD_SIZE + pool->block_size);
 
-   return block;
+    return block;
 }
