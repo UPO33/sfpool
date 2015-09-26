@@ -10,7 +10,16 @@ static void* ptrs[SIZE];
 
 static void sighandler (int signal)
 {
-    printf("SIG\n");
+    sfpool_dump(pool);
+    printf("now free everything !\n");
+    struct sfpool_it it;
+    void* ptr = sfpool_it_first(pool,&it);
+    while(ptr)
+    {
+        sfpool_free(pool,ptr);
+        ptr = sfpool_it_next(&it);
+    }
+
     sfpool_dump(pool);
     exit(0);
 }
@@ -49,7 +58,7 @@ static void func1 (void)
         if(p)
         {
             *p = sfpool_alloc(pool);
-            printf("ALLOC   :   %p\n",*p);
+            printf("ALLOC: %p\n",*p);
             if(*p == NULL)
             {
                 sleep(5000);
@@ -64,7 +73,7 @@ static void func2 (void)
     if(p)
     {
         sfpool_free(pool,*p);
-        printf("FREE   :   %p\n",*p);
+        printf("FREE : %p\n",*p);
         *p = NULL;
     }
 }
@@ -83,6 +92,7 @@ int main (void)
     while(1)
     {
         func[rand() % 2]();
+        printf("PAGE : %lu\n",pool->page_count);
     }
     
     sfpool_dump(pool);
