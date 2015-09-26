@@ -71,12 +71,12 @@ static void func2 (void)
 
 void (*func[2]) (void) = { func1,func2 };
 
-int main2 (void)
+int main (void)
 {
     signal(SIGINT,sighandler);
     memset(ptrs,0,sizeof(ptrs));
 
-    pool = sfpool_create (1,512,SFPOOL_EXPAND_FACTOR_ONE);
+    pool = sfpool_create (1,32,SFPOOL_EXPAND_FACTOR_ONE);
 
     srand(clock());
 
@@ -89,14 +89,12 @@ int main2 (void)
     return 0;
 }
 
-int main (void)
+int main2 (void)
 {
     signal(SIGINT,sighandler);
     memset(ptrs,0,sizeof(ptrs));
 
     pool = sfpool_create (1,8,SFPOOL_EXPAND_FACTOR_ONE);
-
-    srand(clock());
 
     for(int i = 0;i < 9;i++)
     {
@@ -104,24 +102,20 @@ int main (void)
         *((size_t*) ptrs[i]) = i;
     }
 
-    //sfpool_free(pool,ptrs[0]);
-    //sfpool_free(pool,ptrs[2]);
-
     struct sfpool_it it;
     size_t* b;
 
-    b = sfpool_it_init(pool,&it,ptrs[8]);
+    b = sfpool_it_first(pool,&it);
     while(b)
     {   
-        printf("CUR %p/%u = %X\n",it.page,it.block_pos,*b);
+        printf("[%p] (%u) = %X\n",it.page,it.block_pos,*b);
         b = sfpool_it_next(&it);
     }
 
-    printf("-----------------------\n");
-    b = sfpool_it_init(pool,&it,ptrs[3]);
+    b = sfpool_it_block(pool,&it,ptrs[8]);
     while(b)
     {   
-        printf("CUR %p/%u = %X\n",it.page,it.block_pos,*b);
+        printf("[%p] (%u) = %X\n",it.page,it.block_pos,*b);
         b = sfpool_it_prev(&it);
     }
 
