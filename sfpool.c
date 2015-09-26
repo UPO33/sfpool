@@ -53,6 +53,9 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXP
      */
     pool->block_distance = (WORD_SIZE + pool->block_size) / WORD_SIZE;
 
+    /* the first block of first page is reserved.
+     * */
+
     return pool;
 }
 
@@ -65,7 +68,7 @@ void sfpool_destroy (struct sfpool* pool)
 
     struct sfpool_page* it,*prev;
 
-    it = pool->all_pages;
+    it = pool->first_page;
 
     while(it != NULL)
     {
@@ -90,13 +93,24 @@ static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACT
     /* initialize the new page */
     page->pool = pool;
 
-    /* add this page at the start of all_pages list */
-    page->next = pool->all_pages;
-    page->prev = NULL;
+    /* add this page after the last page */
+    page->next = NULL;
+    page->prev = pool->last_page;
 
-    if(pool->all_pages != NULL)
+    /* check if we have last page */
+    if(pool->last_page != NULL)
     {
-        pool->all_pages->prev = page;
+        pool->last_page->next = page;
+    }
+    else
+    {
+        /* 
+         * we don't have last page.
+         * it means we don't have a first page.
+         * make this page as first page as well.
+         */
+
+        pool->first_page = page;
     }
 
     /* add this page at the end of free_pages list */
@@ -111,7 +125,7 @@ static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACT
     page->block_count = pool->page_size;
     page->free_count = pool->page_size;
 
-    pool->all_pages = page;
+    pool->last_page = page;
     pool->free_pages = page;
 
     pool->block_count += pool->page_size;
@@ -158,9 +172,14 @@ static void delete_page (struct sfpool* pool,struct sfpool_page* page)
     if(page->next_free) page->next_free->prev_free = page->prev_free;
 
     /* if this page is the first page */
-    if(pool->all_pages == page)
+    if(pool->first_page == page)
     {
-        pool->all_pages = page->next;
+        pool->first_page = page->next;
+    }
+    /* if this page is the last page */
+    if(pool->last_page == page)
+    {
+        pool->last_page = page->prev;
     }
     /* if this page is the first free page */
     if(pool->free_pages == page)
@@ -170,13 +189,6 @@ static void delete_page (struct sfpool* pool,struct sfpool_page* page)
 
     pool->block_count -= page->block_count;
     pool->page_count--;
-
-    /* if this was the last page */
-    if(pool->page_count == 0)
-    {
-        pool->page_size = page->block_count;
-        return;
-    }
 }
 
 void* sfpool_alloc (struct sfpool* pool)
@@ -315,7 +327,7 @@ void sfpool_dump (struct sfpool* pool)
     pool->page_count,
     pool->expand_factor);
 
-    struct sfpool_page* page = pool->all_pages;
+    struct sfpool_page* page = pool->first_page;
     size_t* header = 0;
 
     /* iterator through all pages ... */
@@ -351,133 +363,101 @@ void sfpool_dump (struct sfpool* pool)
     }
 }
 
-size_t* find_next (struct sfpool_page* page,size_t* header,size_t* the_pos)
+static size_t* next_used (struct sfpool_page* page,size_t* header,size_t *the_pos)
 {
-    struct sfpool* pool = page->pool;
-    size_t max = page->block_count;
     size_t pos = *the_pos;
+    size_t max = page->block_count;
+    size_t distance = page->pool->block_distance;
 
-    while(page != NULL)
+    while(1)
     {
         while(pos < max)
         {
-            printf("next dump : page[%p] h-addr[%p] h-data[%p]",page,header,*header);
             if(*header == (size_t) page)
             {
-                printf(" [USED]\n");
+                /* we found a used block! now initialize the iterator object */
                 *the_pos = pos;
 
                 return header;
             }
-            else 
-                printf(" [FREE]\n");
 
-            header += pool->block_distance;
             pos++;
+            header += distance;
         }
 
-        /* turn the page and and check from the beggining of the next page*/
         page = page->next;
 
-        if(page != NULL)
+        if(page == NULL)
         {
-            header = (size_t*) &page->blocks;
-            pos = 0;
+            break;
         }
-    }
 
-    /* nothing found! now make the iterator object invalid */
+        header = (size_t*) &page->blocks;
+        pos = 0;
+        max = page->block_count;
+    }
 
     return NULL;
 }
 
-static size_t* find_prev (struct sfpool_page* page,size_t* header,size_t* the_pos)
+static size_t* prev_used (struct sfpool_page* page,size_t* header,size_t *the_pos)
 {
-    struct sfpool* pool = page->pool;
-    static const size_t min = (size_t) (0 - 1);
     size_t pos = *the_pos;
+    size_t min = (size_t) (0 - 1);
+    size_t distance = page->pool->block_distance;
 
-    while(page != NULL)
+    while(1)
     {
         while(pos != min)
         {
-            printf("prev dump : page[%p] h-addr[%p] h-data[%p]",page,header,*header);
             if(*header == (size_t) page)
             {
+                /* we found a used block! now initialize the iterator object */
                 *the_pos = pos;
-                printf(" [USED]\n");
 
                 return header;
             }
-            else
-                printf(" [FREE]\n");
 
-
-            header -= pool->block_distance;
             pos--;
+            header -= distance;
         }
 
-        /* turn the page and and check from the beggining of the previous page*/
         page = page->prev;
 
-        if(page != NULL)
+        if(page == NULL)
         {
-            header = (size_t*) (((size_t) &page->blocks) + ((pool->block_distance * WORD_SIZE) * (page->block_count - 1)));
-            pos = (page->block_count - 1);
+            break;
         }
-    }
 
-    /* nothing found! now make the iterator object invalid */
+        pos = page->block_count - 1;
+        header = (size_t*) ((&page->blocks) + (distance * pos));
+    }
 
     return NULL;
 }
 
-void* sfpool_it_init (struct sfpool* pool,struct sfpool_it* it,void* block)
+void* sfpool_it_first (struct sfpool* pool,struct sfpool_it* it)
 {
-    struct sfpool_page* page;
-    size_t* header,pos;
+    struct sfpool_page* page = pool->first_page;
 
-    /* if the given block is NULL */
-    if(block == NULL)
+    if(page == NULL)
     {
-        /* there are not any pages, so don't try */
-        if(pool->all_pages == NULL)
-        {
-            goto __error;
-        }
-
-        /* get the first used block as default */
-        header = (size_t*) &pool->all_pages->blocks;
-    }
-    else
-    {
-        /* get header of the given block  */
-        header = ((size_t*) block) - 1;
+        return NULL;
     }
 
-    /* get the owner page of the header */
-    page = (struct sfpool_page*) *header;
-    
-    /* get position of the header in the page */
-    pos = (((size_t) header) - ((size_t) &page->blocks)) / (WORD_SIZE + pool->block_size);
+    size_t* header = (size_t*) &page->blocks;
+    size_t pos = 0;
 
-    /* look for next used block ... */
-    header = find_next(pool->all_pages,header,&pos);
+    header = next_used(page,header,&pos);
 
-    /* we found nothing */
-    if(header == NULL)
+    if(header != NULL)
     {
-        goto __error;
+        it->page = (struct sfpool_page*) *header;
+        it->header = header;
+        it->block_pos = pos;
+
+        return (header + 1);
     }
-
-    /* we found a used block! now initialize the iterator object */
-    it->page = page;
-    it->header = header;
-    it->block_pos = pos;
-
-    return (header + 1);
-
-__error:
 
     /* fill the iterator with zero */
     memset(it,0,sizeof(struct sfpool_it));
@@ -485,52 +465,97 @@ __error:
     return NULL;
 }
 
+void* sfpool_it_last (struct sfpool* pool,struct sfpool_it* it)
+{
+    struct sfpool_page* page = pool->last_page;
+
+    if(page == NULL)
+    {
+        return NULL;
+    }
+
+    size_t* header = (size_t*) (&page->blocks) + (pool->block_distance * (page->block_count - 1));
+    size_t pos = page->block_count - 1;
+
+    header = prev_used(page,header,&pos);
+
+    if(header != NULL)
+    {
+        it->page = (struct sfpool_page*) *header;
+        it->header = header;
+        it->block_pos = pos;
+
+        return (header + 1);
+    }
+
+    /* fill the iterator with zero */
+    memset(it,0,sizeof(struct sfpool_it));
+
+    return NULL;
+}
+
+void* sfpool_it_block (struct sfpool* pool,struct sfpool_it* it,void* block)
+{
+    struct sfpool_page* page;
+    size_t* header = ((size_t*) block ) - 1;
+    size_t pos;
+
+    /* get the owner page of the header */
+    page = (struct sfpool_page*) *header;
+    
+    /* get position of the header in the page */
+    pos = (((size_t) header) - ((size_t) &page->blocks)) / (WORD_SIZE + pool->block_size);
+
+    /* now initialize the iterator object */
+    it->page = page;
+    it->header = header;
+    it->block_pos = pos;
+
+    return (header + 1);
+}
+
 void* sfpool_it_next (struct sfpool_it* it)
 {
-    if(it->page == NULL)
+    struct sfpool_page* page = it->page;
+    size_t* header = it->header + page->pool->block_distance;
+    size_t pos = it->block_pos + 1;
+
+    header = next_used(page,header,&pos);
+
+    if(header != NULL)
     {
-        goto __error;
+        it->page = (struct sfpool_page*) *header;
+        it->header = header;
+        it->block_pos = pos;
+
+        return (header + 1);
     }
 
-    it->header += it->page->pool->block_distance;
-    it->block_pos++;
-
-    /* look for next used block ... */
-    it->header = find_next(it->page,it->header,&it->block_pos);
-
-    if(it->header != NULL)
-    {
-        it->page = (struct sfpool_page*) *it->header;
-        return (it->header + 1);
-    }
-
-__error:
-
+    /* fill the iterator with zero */
     memset(it,0,sizeof(struct sfpool_it));
+
     return NULL;
 }
 
 void* sfpool_it_prev (struct sfpool_it* it)
 {
-    if(it->page == NULL)
+    struct sfpool_page* page = it->page;
+    size_t* header = it->header - page->pool->block_distance;
+    size_t pos = it->block_pos - 1;
+
+    header = prev_used(page,header,&pos);
+
+    if(header != NULL)
     {
-        goto __error;
+        it->page = (struct sfpool_page*) *header;
+        it->header = header;
+        it->block_pos = pos;
+
+        return (header + 1);
     }
 
-    it->header -= it->page->pool->block_distance;
-    it->block_pos--;
-
-    /* look for previous used block ... */
-    it->header = find_prev(it->page,it->header,&it->block_pos);
-
-    if(it->header != NULL)
-    {
-        it->page = (struct sfpool_page*) *it->header;
-        return (it->header + 1);
-    }
-
-__error:
-
+    /* fill the iterator with zero */
     memset(it,0,sizeof(struct sfpool_it));
+
     return NULL;
 }
