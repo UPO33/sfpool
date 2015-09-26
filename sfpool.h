@@ -48,7 +48,8 @@ struct sfpool
 
     enum SFPOOL_EXPAND_FACTOR expand_factor;
 
-    struct sfpool_page* all_pages;
+    struct sfpool_page* first_page;
+    struct sfpool_page* last_page;
     struct sfpool_page* free_pages;
 };
 
