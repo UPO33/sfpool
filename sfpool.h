@@ -131,18 +131,41 @@ void sfpool_free (struct sfpool* pool,void* block);
 void sfpool_dump (struct sfpool* pool);
 
 /*
- * dis: initialize an iterator
+ * dis: initialize an iterator from first block of memory pool
  *
  * arg: pointer to pool object
  * arg: pointer to iterator object
- * arg: pointer to block. both allocated and NULL are permitted.
  *
- * ret: a pointer to the block. if the block is NULL, then
- *      returns a pointer to first block of memory pool.
+ * ret: a pointer to first used block of memory pool.
  *      it also initialize 'it' iterator object and makes
- *      it point to the given block or first block of memory pool.
+ *      it point to first block of memory pool.
  */
-void* sfpool_it_init (struct sfpool* pool,struct sfpool_it* it,void* block);
+void* sfpool_it_first (struct sfpool* pool,struct sfpool_it* it);
+
+/*
+ * dis: initialize an iterator from last block of memory pool
+ *
+ * arg: pointer to pool object
+ * arg: pointer to iterator object
+ *
+ * ret: a pointer to first used block of memory pool.
+ *      it also initialize 'it' iterator object and makes
+ *      it point to last block of memory pool.
+ */
+void* sfpool_it_last (struct sfpool* pool,struct sfpool_it* it);
+
+/*
+ * dis: initialize an iterator from a specified block of memory pool
+ *
+ * arg: pointer to pool object
+ * arg: pointer to iterator object
+ * arg: pointer to allocated block
+ *
+ * ret: a pointer is the same as the given 'block'.
+ *      it also initialize 'it' iterator object and makes
+ *      it point to the given block of memory pool.
+ */
+void* sfpool_it_from (struct sfpool* pool,struct sfpool_it* it,void* block);
 
 /*
  * dis: get the next block
