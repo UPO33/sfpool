@@ -363,7 +363,8 @@ void sfpool_dump (struct sfpool* pool)
     }
 }
 
-static size_t* next_used (struct sfpool_page* page,size_t* header,size_t *the_pos)
+static size_t* next_used (struct sfpool_page* page,size_t* header,
+                         size_t *the_pos)
 {
     size_t pos = *the_pos;
     size_t max = page->block_count;
@@ -371,8 +372,10 @@ static size_t* next_used (struct sfpool_page* page,size_t* header,size_t *the_po
 
     while(1)
     {
+        /* check if we're still in the page boundary */
         while(pos < max)
         {
+            /* if the header is a used kind */
             if(*header == (size_t) page)
             {
                 /* we found a used block! now initialize the iterator object */
@@ -381,17 +384,21 @@ static size_t* next_used (struct sfpool_page* page,size_t* header,size_t *the_po
                 return header;
             }
 
+            /* go to the next header */
             pos++;
             header += distance;
         }
 
+        /* turn the page :) */
         page = page->next;
 
+        /* now is this page valid? */
         if(page == NULL)
         {
             break;
         }
 
+        /* now start from first header block of the page */
         header = (size_t*) &page->blocks;
         pos = 0;
         max = page->block_count;
@@ -408,8 +415,10 @@ static size_t* prev_used (struct sfpool_page* page,size_t* header,size_t *the_po
 
     while(1)
     {
+        /* check if we're still in the page boundary */
         while(pos != min)
         {
+            /* if the header is a used kind */
             if(*header == (size_t) page)
             {
                 /* we found a used block! now initialize the iterator object */
@@ -418,17 +427,21 @@ static size_t* prev_used (struct sfpool_page* page,size_t* header,size_t *the_po
                 return header;
             }
 
+            /* go to the previous header */
             pos--;
             header -= distance;
         }
 
+        /* turn the page backward */
         page = page->prev;
 
+        /* now is this page valid? */
         if(page == NULL)
         {
             break;
         }
 
+        /* now start from last header block of the page */
         pos = page->block_count - 1;
         header = (size_t*) ((&page->blocks) + (distance * pos));
     }
@@ -438,20 +451,29 @@ static size_t* prev_used (struct sfpool_page* page,size_t* header,size_t *the_po
 
 void* sfpool_it_first (struct sfpool* pool,struct sfpool_it* it)
 {
+    /* get first page of memory pool */
     struct sfpool_page* page = pool->first_page;
 
+    /* check if the page is valid? */
     if(page == NULL)
     {
         return NULL;
     }
 
+    /* get first block header of the page */
     size_t* header = (size_t*) &page->blocks;
     size_t pos = 0;
 
+    /* find first used block header after the current block header */
     header = next_used(page,header,&pos);
 
+    /*
+     * if next_used() not returned NULL,
+     * it means it has found a used block header
+     */
     if(header != NULL)
     {
+        /* save the current status into the iterator object */
         it->page = (struct sfpool_page*) *header;
         it->header = header;
         it->block_pos = pos;
@@ -467,20 +489,30 @@ void* sfpool_it_first (struct sfpool* pool,struct sfpool_it* it)
 
 void* sfpool_it_last (struct sfpool* pool,struct sfpool_it* it)
 {
+    /* get last page of memory pool */
     struct sfpool_page* page = pool->last_page;
 
+    /* check if the page is valid? */
     if(page == NULL)
     {
         return NULL;
     }
 
+    /* get last block header of the page */
     size_t* header = (size_t*) (&page->blocks) + (pool->block_distance * (page->block_count - 1));
     size_t pos = page->block_count - 1;
 
+    /* find first used block header after the current block header */
     header = prev_used(page,header,&pos);
+
+    /*
+     * if prev_used() not returned NULL,
+     * it means it has found a used block header
+     */
 
     if(header != NULL)
     {
+        /* save the current status into the iterator object */
         it->page = (struct sfpool_page*) *header;
         it->header = header;
         it->block_pos = pos;
@@ -506,7 +538,7 @@ void* sfpool_it_block (struct sfpool* pool,struct sfpool_it* it,void* block)
     /* get position of the header in the page */
     pos = (((size_t) header) - ((size_t) &page->blocks)) / (WORD_SIZE + pool->block_size);
 
-    /* now initialize the iterator object */
+    /* save the current status into the iterator object */
     it->page = page;
     it->header = header;
     it->block_pos = pos;
@@ -516,14 +548,22 @@ void* sfpool_it_block (struct sfpool* pool,struct sfpool_it* it,void* block)
 
 void* sfpool_it_next (struct sfpool_it* it)
 {
+    /* load the last status from the iterator object */
     struct sfpool_page* page = it->page;
     size_t* header = it->header + page->pool->block_distance;
     size_t pos = it->block_pos + 1;
 
+    /* find first used block header after the current block header */
     header = next_used(page,header,&pos);
+
+    /*
+     * if next_used() not returned NULL,
+     * it means it has found a used block header
+     */
 
     if(header != NULL)
     {
+        /* save the current status into the iterator object */
         it->page = (struct sfpool_page*) *header;
         it->header = header;
         it->block_pos = pos;
@@ -539,14 +579,22 @@ void* sfpool_it_next (struct sfpool_it* it)
 
 void* sfpool_it_prev (struct sfpool_it* it)
 {
+    /* load the last status from the iterator object */
     struct sfpool_page* page = it->page;
     size_t* header = it->header - page->pool->block_distance;
     size_t pos = it->block_pos - 1;
 
+    /* find first used block header after the current block header */
     header = prev_used(page,header,&pos);
+
+    /*
+     * if prev_used() not returned NULL,
+     * it means it has found a used block header
+     */
 
     if(header != NULL)
     {
+        /* save the current status into the iterator object */
         it->page = (struct sfpool_page*) *header;
         it->header = header;
         it->block_pos = pos;
