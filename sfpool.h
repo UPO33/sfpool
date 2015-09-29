@@ -192,4 +192,8 @@ void* sfpool_it_next (struct sfpool_it* it);
  */
 void* sfpool_it_prev (struct sfpool_it* it);
 
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
 #endif /* SFPOOL_H_ */
