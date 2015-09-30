@@ -85,7 +85,7 @@ int main (void)
     signal(SIGINT,sighandler);
     memset(ptrs,0,sizeof(ptrs));
 
-    pool = sfpool_create (1,32,SFPOOL_EXPAND_FACTOR_ONE);
+    pool = sfpool_create (1,32,SFPOOL_EXPAND_TYPE_ONE);
 
     srand(clock());
 
@@ -104,7 +104,7 @@ int main2 (void)
     signal(SIGINT,sighandler);
     memset(ptrs,0,sizeof(ptrs));
 
-    pool = sfpool_create (1,8,SFPOOL_EXPAND_FACTOR_ONE);
+    pool = sfpool_create (1,8,SFPOOL_EXPAND_TYPE_ONE);
 
     for(int i = 0;i < 9;i++)
     {
