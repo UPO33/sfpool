@@ -59,24 +59,29 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXP
 
 void sfpool_destroy (struct sfpool* pool)
 {
+    /* check if the memory pool is valid? */
     if(pool == NULL)
     {
         return;
     }
 
-    struct sfpool_page* it,*prev;
+    /* check if the memory pool is valid? */
+    struct sfpool_page* it,*next;
 
+    /* get the first page */
     it = pool->first_page;
 
+    /* free all pages */
     while(it != NULL)
     {
-        prev = it->prev;
+        next = it->next;
         free(it);
-        it = prev;
+        it = next;
     }
 }
 
-static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACTOR expand_factor)
+static struct sfpool_page* add_page (struct sfpool* pool,
+                                     enum SFPOOL_EXPAND_FACTOR expand_factor)
 {
     size_t raw_size = ((sizeof(size_t) + pool->block_size) * pool->page_size) +
                       sizeof(struct sfpool_page);
