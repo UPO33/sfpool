@@ -22,7 +22,7 @@ static size_t round_size (size_t size)
     return size;
 }
 
-struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXPAND_FACTOR expand_factor)
+struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXPAND_TYPE expand_type)
 {
     /* reserve a memory block for the pool object */
     struct sfpool* pool = malloc(sizeof(struct sfpool));
@@ -42,7 +42,7 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXP
      */
     pool->block_size = round_size(block_size);
     pool->page_size = page_size;
-    pool->expand_factor = expand_factor;
+    pool->expand_type = expand_type;
 
     /*
      * 'distance' is the distance between this header and next header.
@@ -81,7 +81,7 @@ void sfpool_destroy (struct sfpool* pool)
 }
 
 static struct sfpool_page* add_page (struct sfpool* pool,
-                                     enum SFPOOL_EXPAND_FACTOR expand_factor)
+                                     enum SFPOOL_EXPAND_TYPE expand_type)
 {
     size_t raw_size = ((sizeof(size_t) + pool->block_size) * pool->page_size) +
                       sizeof(struct sfpool_page);
@@ -244,7 +244,7 @@ void* sfpool_alloc (struct sfpool* pool)
     if(page == NULL)
     {
         /* request a new page */
-        page = add_page(pool,pool->expand_factor);
+        page = add_page(pool,pool->expand_type);
 
         return sfpool_alloc(pool);
     }
@@ -269,7 +269,7 @@ void* sfpool_alloc (struct sfpool* pool)
     else
     {
         /* request a new page */
-        page = add_page(pool,pool->expand_factor);
+        page = add_page(pool,pool->expand_type);
 
         /* if the requested page could not be created for any reason */
         if(page == NULL)
@@ -323,12 +323,12 @@ void sfpool_dump (struct sfpool* pool)
     "block_size     : %u\n"
     "block_count    : %u\n"
     "page_count     : %u\n"
-    "expand_factor  : %u\n"
+    "expand_type  : %u\n"
     "============\n",
     pool->block_size,
     pool->block_count,
     pool->page_count,
-    pool->expand_factor);
+    pool->expand_type);
 
     struct sfpool_page* page = pool->first_page;
     size_t* header = 0;

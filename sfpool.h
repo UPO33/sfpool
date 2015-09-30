@@ -28,11 +28,11 @@ extern "C" {
 
 typedef size_t bool_t;
 
-enum SFPOOL_EXPAND_FACTOR
+enum SFPOOL_EXPAND_TYPE
 {
-    SFPOOL_EXPAND_FACTOR_ONE = 0,
-    SFPOOL_EXPAND_FACTOR_TWO = 1,
-    SFPOOL_EXPAND_FACTOR__UNUSED = (size_t) -1,
+    SFPOOL_EXPAND_TYPE_ONE = 0,
+    SFPOOL_EXPAND_TYPE_TWO = 1,
+    SFPOOL_EXPAND_TYPE__UNUSED = (size_t) -1,
 };
 
 struct sfpool_page;
@@ -46,7 +46,7 @@ struct sfpool
     size_t page_count;
     size_t page_size;
 
-    enum SFPOOL_EXPAND_FACTOR expand_factor;
+    enum SFPOOL_EXPAND_TYPE expand_type;
 
     struct sfpool_page* first_page;
     struct sfpool_page* last_page;
@@ -91,7 +91,7 @@ struct sfpool_it
  */
 
 struct sfpool* sfpool_create (size_t block_size,size_t page_size,
-                              enum SFPOOL_EXPAND_FACTOR expand_factor);
+                              enum SFPOOL_EXPAND_TYPE expand_type);
 
 /*
  * dis: destroy a valid pool object
