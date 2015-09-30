@@ -1,24 +1,22 @@
 #include "sfpool.h"
 
-#define WORD_SIZE (sizeof(size_t))
-
 /*
  * round the given size by system word size (word size is 4 bytes in 32-bits
  * and 8 bytes in 64-bits systems). we'll use this for address alignment.
  */
 static size_t round_size (size_t size)
 {
-    if(size < WORD_SIZE)
+    if(size < sizeof(size_t))
     {
-        size = WORD_SIZE;
+        size = sizeof(size_t);
         return size;
     }
 
-    size_t mod = size % WORD_SIZE;
+    size_t mod = size % sizeof(size_t);
 
     if(mod != 0)
     {
-        size += WORD_SIZE - mod;
+        size += sizeof(size_t) - mod;
     }
 
     return size;
@@ -49,9 +47,9 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXP
     /*
      * 'distance' is the distance between this header and next header.
      * the size is not actually in bytes, but it rather was divided
-     * by WORD_SIZE to make 'header' address increased by.
+     * by sizeof(size_t) to make 'header' address increased by.
      */
-    pool->block_distance = (WORD_SIZE + pool->block_size) / WORD_SIZE;
+    pool->block_distance = (sizeof(size_t) + pool->block_size) / sizeof(size_t);
 
     /* the first block of first page is reserved.
      * */
@@ -80,7 +78,7 @@ void sfpool_destroy (struct sfpool* pool)
 
 static struct sfpool_page* add_page (struct sfpool* pool,enum SFPOOL_EXPAND_FACTOR expand_factor)
 {
-    size_t raw_size = ((WORD_SIZE + pool->block_size) * pool->page_size) +
+    size_t raw_size = ((sizeof(size_t) + pool->block_size) * pool->page_size) +
                       sizeof(struct sfpool_page);
 
     struct sfpool_page* page = (struct sfpool_page*) malloc(raw_size);
@@ -353,7 +351,7 @@ void sfpool_dump (struct sfpool* pool)
             }
 
             /* goto to next block */
-            header = header + (WORD_SIZE + pool->block_size) / WORD_SIZE;
+            header = header + (sizeof(size_t) + pool->block_size) / sizeof(size_t);
         }
 
         printf(" }\n");
@@ -536,7 +534,7 @@ void* sfpool_it_block (struct sfpool* pool,struct sfpool_it* it,void* block)
     page = (struct sfpool_page*) *header;
     
     /* get position of the header in the page */
-    pos = (((size_t) header) - ((size_t) &page->blocks)) / (WORD_SIZE + pool->block_size);
+    pos = (((size_t) header) - ((size_t) &page->blocks)) / (sizeof(size_t) + pool->block_size);
 
     /* save the current status into the iterator object */
     it->page = page;
