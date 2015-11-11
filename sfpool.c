@@ -51,9 +51,6 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXP
      */
     pool->block_distance = (sizeof(size_t) + pool->block_size) / sizeof(size_t);
 
-    /* the first block of first page is reserved.
-     * */
-
     return pool;
 }
 
