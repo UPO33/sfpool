@@ -82,15 +82,15 @@ struct sfpool_it
 /*
  * dis: create and initialize a pool object
  *
+ * arg: a pointer to pool object
  * arg: size of each block of pool
  * arg: how many blocks a page must maintain?
  * arg: how should this pool be expanded?
  *
- * ret: a pointer to a pool object when function succeeds,
- *      returns NULL if it fails.
+ * ret: 
  */
 
-struct sfpool* sfpool_create (size_t block_size,size_t page_size,
+void sfpool_create (struct sfpool* pool,size_t block_size,size_t page_size,
                               enum SFPOOL_EXPAND_TYPE expand_type);
 
 /*
