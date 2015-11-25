@@ -22,16 +22,8 @@ static size_t round_size (size_t size)
     return size;
 }
 
-struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXPAND_TYPE expand_type)
+void sfpool_create (struct sfpool* pool,size_t block_size,size_t page_size,enum SFPOOL_EXPAND_TYPE expand_type)
 {
-    /* reserve a memory block for the pool object */
-    struct sfpool* pool = malloc(sizeof(struct sfpool));
-
-    if(pool == NULL)
-    {
-        return NULL;
-    }
-
     memset(pool,0,sizeof(struct sfpool));
 
     /*
@@ -40,6 +32,8 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXP
      * on word sized boundary address. this will result in higher speed
      * performance. but on the other hand it wastes memory as well.
      */
+    printf("block_size  %d\n",block_size);
+    printf("rblock_size %d\n",round_size(block_size));
     pool->block_size = round_size(block_size);
     pool->page_size = page_size;
     pool->expand_type = expand_type;
@@ -50,8 +44,6 @@ struct sfpool* sfpool_create (size_t block_size,size_t page_size,enum SFPOOL_EXP
      * by sizeof(size_t) to make 'header' address increased by.
      */
     pool->block_distance = (sizeof(size_t) + pool->block_size) / sizeof(size_t);
-
-    return pool;
 }
 
 void sfpool_destroy (struct sfpool* pool)
