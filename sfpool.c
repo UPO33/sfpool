@@ -32,8 +32,6 @@ void sfpool_create (struct sfpool* pool,size_t block_size,size_t page_size,enum 
      * on word sized boundary address. this will result in higher speed
      * performance. but on the other hand it wastes memory as well.
      */
-    printf("block_size  %d\n",block_size);
-    printf("rblock_size %d\n",round_size(block_size));
     pool->block_size = round_size(block_size);
     pool->page_size = page_size;
     pool->expand_type = expand_type;
