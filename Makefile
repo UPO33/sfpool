@@ -6,7 +6,9 @@ OBJ_FILES	= bin/sfpool.o
 LIB_FILES	=
 INCLUDE_PATH=
 
-.PHONY:
+all: main bin/libsfpool.so
+
+main:
 	mkdir -p bin
 
 bin/libsfpool.so : $(OBJ_FILES)
