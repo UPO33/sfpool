@@ -14,8 +14,7 @@
  *  0. You just DO WHAT THE FUCK YOU WANT TO.
  ******************************************************************************/
 
-#ifndef SFPOOL_H
-#define SFPOOL_H
+#pragma once
 
 #include <stdint.h>
 #include <string.h>
@@ -195,5 +194,3 @@ void* sfpool_it_prev (struct sfpool_it* it);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* SFPOOL_H_ */
