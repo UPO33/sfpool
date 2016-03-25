@@ -21,6 +21,8 @@ static void sighandler (int signal)
     }
 
     sfpool_dump(pool);
+	
+	//ghjk
     exit(0);
 }
 
