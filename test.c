@@ -23,10 +23,14 @@ static void sighandler (int signal)
     sfpool_dump(pool);
 <<<<<<< HEAD
 	
+<<<<<<< HEAD
 	//get
 	
 =======
 >>>>>>> parent of ed169ed... first
+=======
+	//ghjk
+>>>>>>> parent of 084f2be... new comment
     exit(0);
 }
 
