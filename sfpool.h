@@ -198,4 +198,5 @@ void* sfpool_it_prev (struct sfpool_it* it);
 class SFPool
 {
 	void* Alloc();
+	void Free(void* ptr);
 }
