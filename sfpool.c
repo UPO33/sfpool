@@ -13,8 +13,6 @@ static size_t round_size (size_t size)
     }
 
     size_t mod = size % sizeof(size_t);
-	
-	//ghjgj
 
     if(mod != 0)
     {

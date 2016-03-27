@@ -194,3 +194,8 @@ void* sfpool_it_prev (struct sfpool_it* it);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+class SFPool
+{
+	void* Alloc();
+}

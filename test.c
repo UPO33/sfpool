@@ -21,9 +21,12 @@ static void sighandler (int signal)
     }
 
     sfpool_dump(pool);
+<<<<<<< HEAD
 	
 	//get
 	
+=======
+>>>>>>> parent of ed169ed... first
     exit(0);
 }
 
